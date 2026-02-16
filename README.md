@@ -1,54 +1,127 @@
 # Discord MCP Server
 
-A Model Context Protocol (MCP) server that enables LLMs to interact with Discord channels, allowing them to send and read messages through Discord's API. Using this server, LLMs like Claude can directly interact with Discord channels while maintaining user control and security.
+A Model Context Protocol (MCP) server that enables LLMs to interact with Discord — manage messages, channels, roles, members, threads, forums, emojis, scheduled events, automod, and more.
 
 ## Features
 
-- Send messages to Discord channels
-- Read recent messages from channels
-- Automatic server and channel discovery
-- Support for both channel names and IDs
-- Proper error handling and validation
+### Messages
+- `send-message` — Send a message to a channel
+- `read-messages` — Read recent messages from a channel
+- `delete-message` — Delete a specific message
+- `bulk-delete-messages` — Delete multiple recent messages (2-100)
+- `pin-message` / `unpin-message` — Pin or unpin messages
+- `get-pinned-messages` — Get all pinned messages
+
+### Servers
+- `list-servers` — List all servers the bot is in
+- `get-server-info` — Get detailed server information
+- `set-server-name` — Change server name
+- `edit-server` — Edit server settings (description, icon, verification level, notifications, content filter, AFK channel/timeout, system channel)
+
+### Channels
+- `list-channels` — List all channels in a server
+- `create-channel` — Create text, voice, category, announcement, forum, or stage channels
+- `edit-channel` — Edit channel settings
+- `delete-channel` — Delete a channel
+- `create-category` — Create a channel category
+- `move-channel-to-category` — Move a channel to a category
+- `set-channel-permissions` — Set permissions for a role or member on a channel
+
+### Threads
+- `create-thread` — Create a thread (public/private), optionally from a message
+- `list-threads` — List active/archived threads in a channel
+- `send-thread-message` — Send a message to a thread
+- `edit-thread` — Edit thread settings (name, archive duration, slowmode, locked)
+- `archive-thread` — Archive or unarchive a thread
+- `delete-thread` — Delete a thread
+
+### Forums
+- `create-forum-post` — Create a post in a forum channel with optional tags
+- `list-forum-tags` — List available tags on a forum channel
+- `manage-forum-tags` — Create, edit, or delete forum tags
+
+### Roles
+- `list-roles` — List all roles
+- `create-role` — Create a role with color, permissions, hoisted/mentionable options
+- `edit-role` — Edit an existing role
+- `delete-role` — Delete a role
+- `assign-role` / `remove-role` — Assign or remove a role from a member
+
+### Members
+- `list-members` — List server members
+- `get-member-info` — Get detailed member info
+- `set-nickname` — Set or clear a member's nickname
+- `kick-member` — Kick a member
+- `ban-member` / `unban-member` — Ban or unban a member
+- `timeout-member` — Timeout (mute) a member
+- `list-bans` — List all banned users
+
+### Emojis
+- `list-emojis` — List all custom emojis
+- `create-emoji` — Create a custom emoji from an image URL
+- `delete-emoji` — Delete a custom emoji
+
+### Scheduled Events
+- `create-event` — Create a scheduled event (voice/stage channel or external location)
+- `list-events` — List scheduled events
+- `edit-event` — Edit a scheduled event
+- `delete-event` — Delete a scheduled event
+
+### Audit Log
+- `get-audit-log` — Fetch audit log entries with optional filters (action type, user, limit)
+
+### Auto-Moderation
+- `list-automod-rules` — List all automod rules
+- `create-automod-rule` — Create a rule (keyword filter, spam, keyword preset, mention spam)
+- `edit-automod-rule` — Edit an automod rule
+- `delete-automod-rule` — Delete an automod rule
+
+### Bot
+- `set-bot-nickname` — Change the bot's nickname in a server
+- `set-bot-activity` — Set the bot's activity/presence (playing, watching, listening, competing)
+
+### Webhooks
+- `create-webhook` — Create a webhook for a channel
+- `list-webhooks` — List webhooks in a server or channel
+- `delete-webhook` — Delete a webhook
+
+### Invites
+- `create-invite` — Create an invite link
+- `list-invites` — List all invites
+- `delete-invite` — Delete an invite
 
 ## Prerequisites
 
-- Node.js 16.x or higher
-- A Discord bot token
-- The bot must be invited to your server with proper permissions:
-  - Read Messages/View Channels
-  - Send Messages
-  - Read Message History
+- Node.js 16+
+- A Discord bot token with appropriate permissions
+- Bot invited to your server with the intents: Guilds, GuildMessages, MessageContent, GuildMembers, GuildPresences, GuildScheduledEvents, AutoModerationConfiguration
 
 ## Setup
 
-1. Clone this repository:
+1. Clone and install:
+
 ```bash
-git clone https://github.com/yourusername/discordmcp.git
+git clone https://github.com/Jobe95/discordmcp.git
 cd discordmcp
+pnpm install
 ```
 
-2. Install dependencies:
+2. Create a `.env` file:
+
+```
+ALFRED_DISCORD_BOT_TOKEN=your_discord_bot_token_here
+```
+
+3. Build:
+
 ```bash
-npm install
+pnpm build
 ```
 
-3. Create a `.env` file in the root directory with your Discord bot token:
-```
-DISCORD_TOKEN=your_discord_bot_token_here
-```
+## Usage with Claude Desktop
 
-4. Build the server:
-```bash
-npm run build
-```
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
-## Usage with Claude for Desktop
-
-1. Open your Claude for Desktop configuration file:
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-2. Add the Discord MCP server configuration:
 ```json
 {
   "mcpServers": {
@@ -56,102 +129,21 @@ npm run build
       "command": "node",
       "args": ["path/to/discordmcp/build/index.js"],
       "env": {
-        "DISCORD_TOKEN": "your_discord_bot_token_here"
+        "ALFRED_DISCORD_BOT_TOKEN": "your_discord_bot_token_here"
       }
     }
   }
 }
 ```
 
-3. Restart Claude for Desktop
-
-## Available Tools
-
-### send-message
-Sends a message to a specified Discord channel.
-
-Parameters:
-- `server` (optional): Server name or ID (required if bot is in multiple servers)
-- `channel`: Channel name (e.g., "general") or ID
-- `message`: Message content to send
-
-Example:
-```json
-{
-  "channel": "general",
-  "message": "Hello from MCP!"
-}
-```
-
-### read-messages
-Reads recent messages from a specified Discord channel.
-
-Parameters:
-- `server` (optional): Server name or ID (required if bot is in multiple servers)
-- `channel`: Channel name (e.g., "general") or ID
-- `limit` (optional): Number of messages to fetch (default: 50, max: 100)
-
-Example:
-```json
-{
-  "channel": "general",
-  "limit": 10
-}
-```
-
-## Development
-
-1. Install development dependencies:
-```bash
-npm install --save-dev typescript @types/node
-```
-
-2. Start the server in development mode:
-```bash
-npm run dev
-```
-
 ## Testing
 
-You can test the server using the MCP Inspector:
+Test with the MCP Inspector:
 
 ```bash
 npx @modelcontextprotocol/inspector node build/index.js
 ```
 
-## Examples
-
-Here are some example interactions you can try with Claude after setting up the Discord MCP server:
-
-1. "Can you read the last 5 messages from the general channel?"
-2. "Please send a message to the announcements channel saying 'Meeting starts in 10 minutes'"
-3. "What were the most recent messages in the development channel about the latest release?"
-
-Claude will use the appropriate tools to interact with Discord while asking for your approval before sending any messages.
-
-## Security Considerations
-
-- The bot requires proper Discord permissions to function
-- All message sending operations require explicit user approval
-- Environment variables should be properly secured
-- Token should never be committed to version control
-- Channel access is limited to channels the bot has been given access to
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-If you encounter any issues or have questions:
-1. Check the GitHub Issues section
-2. Consult the MCP documentation at https://modelcontextprotocol.io
-3. Open a new issue with detailed reproduction steps
+MIT — see [LICENSE](LICENSE).
