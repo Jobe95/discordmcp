@@ -16,9 +16,21 @@ import {
   Role,
   TextChannel,
   VoiceChannel,
+  ThreadAutoArchiveDuration,
+  ForumChannel,
+  AuditLogEvent,
+  GuildScheduledEventEntityType,
+  GuildScheduledEventPrivacyLevel,
+  GuildScheduledEventStatus,
+  AutoModerationRuleTriggerType,
+  AutoModerationRuleEventType,
+  AutoModerationActionType,
+  ActivityType,
 } from "discord.js";
 import dotenv from "dotenv";
 import { z } from "zod";
+
+dotenv.config();
 
 type GuildChannelTypes =
   | ChannelType.GuildText
@@ -28,8 +40,6 @@ type GuildChannelTypes =
   | ChannelType.GuildStageVoice
   | ChannelType.GuildForum;
 
-dotenv.config();
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -37,6 +47,8 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildScheduledEvents,
+    GatewayIntentBits.AutoModerationConfiguration,
   ],
 });
 
@@ -2276,9 +2288,9 @@ client.once("ready", () => {
 
 // Start the server
 async function main() {
-  const token = process.env.DISCORD_TOKEN;
+  const token = process.env.ALFRED_DISCORD_BOT_TOKEN;
   if (!token) {
-    throw new Error("DISCORD_TOKEN environment variable is not set");
+    throw new Error("ALFRED_DISCORD_BOT_TOKEN environment variable is not set");
   }
 
   try {
