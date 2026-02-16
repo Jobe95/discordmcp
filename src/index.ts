@@ -1032,6 +1032,9 @@ function getChannelTypeName(type: ChannelType): string {
     [ChannelType.GuildAnnouncement]: "announcement",
     [ChannelType.GuildForum]: "forum",
     [ChannelType.GuildStageVoice]: "stage",
+    [ChannelType.PublicThread]: "public-thread",
+    [ChannelType.PrivateThread]: "private-thread",
+    [ChannelType.AnnouncementThread]: "announcement-thread",
   };
   return typeNames[type] || "unknown";
 }
