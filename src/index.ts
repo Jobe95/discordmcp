@@ -3330,6 +3330,305 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      // Scheduled event tools
+      case "create-event": {
+        const {
+          server: serverIdentifier,
+          name,
+          description,
+          startTime,
+          endTime,
+          channel: channelIdentifier,
+          location,
+          image,
+        } = CreateEventSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+
+        if (channelIdentifier) {
+          const ch = await findChannel(channelIdentifier, serverIdentifier);
+          const event = await guild.scheduledEvents.create({
+            name,
+            description,
+            scheduledStartTime: startTime,
+            scheduledEndTime: endTime,
+            privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
+            entityType: ch.type === ChannelType.GuildStageVoice
+              ? GuildScheduledEventEntityType.StageInstance
+              : GuildScheduledEventEntityType.Voice,
+            channel: ch.id,
+            image,
+          });
+          return {
+            content: [{ type: "text", text: `Event "${event.name}" created in ${ch.name}. ID: ${event.id}` }],
+          };
+        }
+
+        if (!location) throw new Error("Either channel or location is required");
+        if (!endTime) throw new Error("End time is required for external events");
+
+        const event = await guild.scheduledEvents.create({
+          name,
+          description,
+          scheduledStartTime: startTime,
+          scheduledEndTime: endTime,
+          privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
+          entityType: GuildScheduledEventEntityType.External,
+          entityMetadata: { location },
+          image,
+        });
+        return {
+          content: [{ type: "text", text: `Event "${event.name}" created at "${location}". ID: ${event.id}` }],
+        };
+      }
+
+      case "list-events": {
+        const { server: serverIdentifier } = ListEventsSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+        const events = await guild.scheduledEvents.fetch();
+
+        const formatted = Array.from(events.values()).map((e) => ({
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          status: GuildScheduledEventStatus[e.status],
+          scheduledStart: e.scheduledStartAt?.toISOString(),
+          scheduledEnd: e.scheduledEndAt?.toISOString(),
+          channel: e.channel?.name,
+          location: e.entityMetadata?.location,
+          userCount: e.userCount,
+          creator: e.creator?.tag,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(formatted, null, 2) }],
+        };
+      }
+
+      case "edit-event": {
+        const {
+          server: serverIdentifier,
+          event: eventIdentifier,
+          name,
+          description,
+          startTime,
+          endTime,
+          status,
+        } = EditEventSchema.parse(args);
+        const event = await findScheduledEvent(eventIdentifier, serverIdentifier);
+
+        const statusMap: Record<string, GuildScheduledEventStatus> = {
+          scheduled: GuildScheduledEventStatus.Scheduled,
+          active: GuildScheduledEventStatus.Active,
+          completed: GuildScheduledEventStatus.Completed,
+          canceled: GuildScheduledEventStatus.Canceled,
+        };
+
+        const options: Record<string, unknown> = {};
+        if (name) options.name = name;
+        if (description !== undefined) options.description = description;
+        if (startTime) options.scheduledStartTime = startTime;
+        if (endTime) options.scheduledEndTime = endTime;
+        if (status) options.status = statusMap[status];
+
+        await event.edit(options);
+        return {
+          content: [{ type: "text", text: `Event "${event.name}" updated` }],
+        };
+      }
+
+      case "delete-event": {
+        const {
+          server: serverIdentifier,
+          event: eventIdentifier,
+        } = DeleteEventSchema.parse(args);
+        const event = await findScheduledEvent(eventIdentifier, serverIdentifier);
+        const eventName = event.name;
+        await event.delete();
+        return {
+          content: [{ type: "text", text: `Event "${eventName}" deleted` }],
+        };
+      }
+
+      // Audit log tool
+      case "get-audit-log": {
+        const {
+          server: serverIdentifier,
+          limit,
+          type,
+          user,
+        } = GetAuditLogSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+
+        const options: Record<string, unknown> = { limit };
+        if (type) {
+          const eventType = AuditLogEvent[type as keyof typeof AuditLogEvent];
+          if (eventType !== undefined) options.type = eventType;
+        }
+        if (user) {
+          const member = await findMember(user, serverIdentifier);
+          options.user = member.user;
+        }
+
+        const logs = await guild.fetchAuditLogs(options);
+        const entries = Array.from(logs.entries.values()).map((e) => ({
+          id: e.id,
+          action: AuditLogEvent[e.action],
+          actionType: e.actionType,
+          targetId: e.targetId,
+          executor: e.executor?.tag,
+          reason: e.reason,
+          createdAt: e.createdAt.toISOString(),
+          changes: e.changes,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(entries, null, 2) }],
+        };
+      }
+
+      // AutoMod tools
+      case "list-automod-rules": {
+        const { server: serverIdentifier } = ListAutoModRulesSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+        const rules = await guild.autoModerationRules.fetch();
+
+        const formatted = Array.from(rules.values()).map((r) => ({
+          id: r.id,
+          name: r.name,
+          enabled: r.enabled,
+          triggerType: AutoModerationRuleTriggerType[r.triggerType],
+          actions: r.actions.map((a) => ({
+            type: AutoModerationActionType[a.type],
+            channelId: a.metadata.channelId,
+            durationSeconds: a.metadata.durationSeconds,
+          })),
+          keywordFilter: r.triggerMetadata.keywordFilter,
+          regexPatterns: r.triggerMetadata.regexPatterns,
+          presets: r.triggerMetadata.presets,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(formatted, null, 2) }],
+        };
+      }
+
+      case "create-automod-rule": {
+        const {
+          server: serverIdentifier,
+          name,
+          triggerType,
+          keywords,
+          regexPatterns,
+          presets,
+          mentionLimit,
+          actions,
+          enabled,
+        } = CreateAutoModRuleSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+
+        const triggerTypeMap: Record<string, AutoModerationRuleTriggerType> = {
+          keyword: AutoModerationRuleTriggerType.Keyword,
+          spam: AutoModerationRuleTriggerType.Spam,
+          keyword_preset: AutoModerationRuleTriggerType.KeywordPreset,
+          mention_spam: AutoModerationRuleTriggerType.MentionSpam,
+        };
+
+        const presetMap: Record<string, number> = {
+          profanity: 1,
+          sexual_content: 2,
+          slurs: 3,
+        };
+
+        const resolvedActions = await Promise.all(
+          actions.map(async (a) => {
+            if (a.type === "block") {
+              return { type: AutoModerationActionType.BlockMessage as const };
+            }
+            if (a.type === "alert") {
+              const ch = await findTextChannel(a.channel!, serverIdentifier);
+              return {
+                type: AutoModerationActionType.SendAlertMessage as const,
+                metadata: { channel: ch },
+              };
+            }
+            return {
+              type: AutoModerationActionType.Timeout as const,
+              metadata: { durationSeconds: a.duration ?? 60 },
+            };
+          }),
+        );
+
+        const triggerMetadata: Record<string, unknown> = {};
+        if (keywords) triggerMetadata.keywordFilter = keywords;
+        if (regexPatterns) triggerMetadata.regexPatterns = regexPatterns;
+        if (presets) triggerMetadata.presets = presets.map((p) => presetMap[p]);
+        if (mentionLimit) triggerMetadata.mentionTotalLimit = mentionLimit;
+
+        const rule = await guild.autoModerationRules.create({
+          name,
+          eventType: AutoModerationRuleEventType.MessageSend,
+          triggerType: triggerTypeMap[triggerType],
+          triggerMetadata,
+          actions: resolvedActions,
+          enabled,
+        });
+        return {
+          content: [{ type: "text", text: `AutoMod rule "${rule.name}" created. ID: ${rule.id}` }],
+        };
+      }
+
+      case "edit-automod-rule": {
+        const {
+          server: serverIdentifier,
+          rule: ruleIdentifier,
+          name,
+          enabled,
+          keywords,
+          regexPatterns,
+          actions,
+        } = EditAutoModRuleSchema.parse(args);
+        const rule = await findAutoModRule(ruleIdentifier, serverIdentifier);
+
+        const options: Record<string, unknown> = {};
+        if (name) options.name = name;
+        if (enabled !== undefined) options.enabled = enabled;
+
+        if (keywords || regexPatterns) {
+          const meta: Record<string, unknown> = {};
+          if (keywords) meta.keywordFilter = keywords;
+          if (regexPatterns) meta.regexPatterns = regexPatterns;
+          options.triggerMetadata = meta;
+        }
+
+        if (actions) {
+          options.actions = await Promise.all(
+            actions.map(async (a) => {
+              if (a.type === "block") return { type: AutoModerationActionType.BlockMessage };
+              if (a.type === "alert") {
+                const ch = await findTextChannel(a.channel!, serverIdentifier);
+                return { type: AutoModerationActionType.SendAlertMessage, metadata: { channel: ch } };
+              }
+              return { type: AutoModerationActionType.Timeout, metadata: { durationSeconds: a.duration ?? 60 } };
+            }),
+          );
+        }
+
+        await rule.edit(options);
+        return {
+          content: [{ type: "text", text: `AutoMod rule "${rule.name}" updated` }],
+        };
+      }
+
+      case "delete-automod-rule": {
+        const {
+          server: serverIdentifier,
+          rule: ruleIdentifier,
+        } = DeleteAutoModRuleSchema.parse(args);
+        const rule = await findAutoModRule(ruleIdentifier, serverIdentifier);
+        const ruleName = rule.name;
+        await rule.delete();
+        return {
+          content: [{ type: "text", text: `AutoMod rule "${ruleName}" deleted` }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
