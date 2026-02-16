@@ -271,6 +271,143 @@ async function findMember(
   return member;
 }
 
+// Helper function to find a thread by name or ID
+async function findThread(
+  threadIdentifier: string,
+  guildIdentifier?: string,
+) {
+  const guild = await findGuild(guildIdentifier);
+
+  try {
+    const channel = await client.channels.fetch(threadIdentifier);
+    if (channel && channel.isThread() && channel.guild.id === guild.id) {
+      return channel;
+    }
+  } catch {
+    // Fetch all active threads
+    const { threads } = await guild.channels.fetchActiveThreads();
+    const thread = threads.find(
+      (t) => t.name.toLowerCase() === threadIdentifier.toLowerCase(),
+    );
+    if (thread) return thread;
+
+    const availableThreads = threads.map((t) => `"${t.name}"`).join(", ");
+    throw new Error(
+      `Thread "${threadIdentifier}" not found. Active threads: ${availableThreads || "none"}`,
+    );
+  }
+  throw new Error(`Thread "${threadIdentifier}" not found`);
+}
+
+// Helper function to find a forum channel by name or ID
+async function findForumChannel(
+  channelIdentifier: string,
+  guildIdentifier?: string,
+): Promise<ForumChannel> {
+  const guild = await findGuild(guildIdentifier);
+
+  try {
+    const channel = await client.channels.fetch(channelIdentifier);
+    if (channel instanceof ForumChannel && channel.guild.id === guild.id) {
+      return channel;
+    }
+  } catch {
+    const channels = guild.channels.cache.filter(
+      (channel): channel is ForumChannel => channel instanceof ForumChannel &&
+        channel.name.toLowerCase() === channelIdentifier.toLowerCase(),
+    );
+
+    if (channels.size === 0) {
+      const available = guild.channels.cache
+        .filter((c): c is ForumChannel => c instanceof ForumChannel)
+        .map((c) => `"${c.name}"`)
+        .join(", ");
+      throw new Error(
+        `Forum channel "${channelIdentifier}" not found. Available forums: ${available || "none"}`,
+      );
+    }
+    if (channels.size > 1) {
+      const list = channels.map((c) => `${c.name} (${c.id})`).join(", ");
+      throw new Error(
+        `Multiple forum channels found: ${list}. Specify the channel ID.`,
+      );
+    }
+    return channels.first()!;
+  }
+  throw new Error(`Forum channel "${channelIdentifier}" not found`);
+}
+
+// Helper function to find an emoji by name or ID
+async function findEmoji(
+  emojiIdentifier: string,
+  guildIdentifier?: string,
+) {
+  const guild = await findGuild(guildIdentifier);
+  await guild.emojis.fetch();
+
+  const emoji =
+    guild.emojis.cache.get(emojiIdentifier) ||
+    guild.emojis.cache.find(
+      (e) => e.name?.toLowerCase() === emojiIdentifier.toLowerCase(),
+    );
+
+  if (!emoji) {
+    const available = guild.emojis.cache
+      .map((e) => `"${e.name}"`)
+      .join(", ");
+    throw new Error(
+      `Emoji "${emojiIdentifier}" not found. Available emojis: ${available || "none"}`,
+    );
+  }
+  return emoji;
+}
+
+// Helper function to find a scheduled event by name or ID
+async function findScheduledEvent(
+  eventIdentifier: string,
+  guildIdentifier?: string,
+) {
+  const guild = await findGuild(guildIdentifier);
+  const events = await guild.scheduledEvents.fetch();
+
+  const event =
+    events.get(eventIdentifier) ||
+    events.find(
+      (e) => e.name.toLowerCase() === eventIdentifier.toLowerCase(),
+    );
+
+  if (!event) {
+    const available = events.map((e) => `"${e.name}"`).join(", ");
+    throw new Error(
+      `Scheduled event "${eventIdentifier}" not found. Available events: ${available || "none"}`,
+    );
+  }
+  return event;
+}
+
+// Helper function to find an automod rule by name or ID
+async function findAutoModRule(
+  ruleIdentifier: string,
+  guildIdentifier?: string,
+) {
+  const guild = await findGuild(guildIdentifier);
+  const rules = await guild.autoModerationRules.fetch();
+
+  const rule =
+    rules.get(ruleIdentifier) ||
+    rules.find(
+      (r) => r.name.toLowerCase() === ruleIdentifier.toLowerCase(),
+    );
+
+  if (!rule) {
+    const available = rules.map((r) => `"${r.name}"`).join(", ");
+    throw new Error(
+      `AutoMod rule "${ruleIdentifier}" not found. Available rules: ${available || "none"}`,
+    );
+  }
+  return rule;
+}
+
 // Validation schemas
 const SendMessageSchema = z.object({
   server: z
