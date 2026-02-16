@@ -3183,6 +3183,153 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      // Guild settings tools
+      case "edit-server": {
+        const {
+          server: serverIdentifier,
+          name,
+          description,
+          icon,
+          systemChannel,
+          afkChannel,
+          afkTimeout,
+          verificationLevel,
+          defaultNotifications,
+          explicitContentFilter,
+        } = EditServerSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+
+        const options: Record<string, unknown> = {};
+        if (name) options.name = name;
+        if (description !== undefined) options.description = description;
+        if (icon) options.icon = icon;
+        if (systemChannel) {
+          const ch = await findTextChannel(systemChannel, serverIdentifier);
+          options.systemChannel = ch;
+        }
+        if (afkChannel) {
+          const ch = await findChannel(afkChannel, serverIdentifier);
+          options.afkChannel = ch;
+        }
+        if (afkTimeout !== undefined) options.afkTimeout = afkTimeout;
+        if (verificationLevel) {
+          const levels: Record<string, number> = { none: 0, low: 1, medium: 2, high: 3, very_high: 4 };
+          options.verificationLevel = levels[verificationLevel];
+        }
+        if (defaultNotifications) {
+          options.defaultMessageNotifications = defaultNotifications === "all" ? 0 : 1;
+        }
+        if (explicitContentFilter) {
+          const filters: Record<string, number> = { disabled: 0, members_without_roles: 1, all_members: 2 };
+          options.explicitContentFilter = filters[explicitContentFilter];
+        }
+
+        await guild.edit(options);
+        return {
+          content: [{ type: "text", text: `Server "${guild.name}" settings updated` }],
+        };
+      }
+
+      case "set-bot-nickname": {
+        const {
+          server: serverIdentifier,
+          nickname,
+        } = SetBotNicknameSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+        const me = guild.members.me;
+        if (!me) throw new Error("Bot is not a member of this server");
+        await me.setNickname(nickname ?? null);
+        return {
+          content: [{ type: "text", text: nickname ? `Bot nickname set to "${nickname}"` : "Bot nickname cleared" }],
+        };
+      }
+
+      case "set-bot-activity": {
+        const { type, name, status } = SetBotActivitySchema.parse(args);
+
+        const typeMap: Record<string, ActivityType> = {
+          playing: ActivityType.Playing,
+          watching: ActivityType.Watching,
+          listening: ActivityType.Listening,
+          competing: ActivityType.Competing,
+        };
+
+        client.user?.setPresence({
+          activities: [{ name, type: typeMap[type] }],
+          status,
+        });
+        return {
+          content: [{ type: "text", text: `Bot activity set to ${type} "${name}" with status ${status}` }],
+        };
+      }
+
+      // Emoji tools
+      case "list-emojis": {
+        const { server: serverIdentifier } = ListEmojisSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+        await guild.emojis.fetch();
+        const emojis = Array.from(guild.emojis.cache.values()).map((e) => ({
+          id: e.id,
+          name: e.name,
+          animated: e.animated,
+          url: e.url,
+          roles: e.roles.cache.map((r) => r.name),
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(emojis, null, 2) }],
+        };
+      }
+
+      case "create-emoji": {
+        const {
+          server: serverIdentifier,
+          name,
+          url,
+          roles,
+        } = CreateEmojiSchema.parse(args);
+        const guild = await findGuild(serverIdentifier);
+
+        const roleObjects = roles
+          ? await Promise.all(roles.map((r) => findRole(r, serverIdentifier)))
+          : undefined;
+
+        const emoji = await guild.emojis.create({
+          attachment: url,
+          name,
+          roles: roleObjects?.map((r) => r.id),
+        });
+        return {
+          content: [{ type: "text", text: `Emoji "${emoji.name}" created. ID: ${emoji.id}` }],
+        };
+      }
+
+      case "delete-emoji": {
+        const {
+          server: serverIdentifier,
+          emoji: emojiIdentifier,
+        } = DeleteEmojiSchema.parse(args);
+        const emoji = await findEmoji(emojiIdentifier, serverIdentifier);
+        const emojiName = emoji.name;
+        await emoji.delete();
+        return {
+          content: [{ type: "text", text: `Emoji "${emojiName}" deleted` }],
+        };
+      }
+
+      // Nickname tool
+      case "set-nickname": {
+        const {
+          server: serverIdentifier,
+          member: memberIdentifier,
+          nickname,
+        } = SetNicknameSchema.parse(args);
+        const member = await findMember(memberIdentifier, serverIdentifier);
+        await member.setNickname(nickname ?? null);
+        return {
+          content: [{ type: "text", text: nickname ? `Nickname for ${member.user.tag} set to "${nickname}"` : `Nickname cleared for ${member.user.tag}` }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
