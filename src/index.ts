@@ -702,6 +702,200 @@ const ListBansSchema = z.object({
   server: z.string().optional().describe("Server name or ID"),
 });
 
+// Thread schemas
+const CreateThreadSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  channel: z.string().describe("Channel name or ID to create thread in"),
+  name: z.string().describe("Thread name"),
+  message: z.string().optional().describe("Message ID to create thread from"),
+  autoArchiveDuration: z.enum(["60", "1440", "4320", "10080"]).optional().describe("Auto-archive duration in minutes (60, 1440, 4320, 10080)"),
+  type: z.enum(["public", "private"]).default("public").describe("Thread type"),
+});
+
+const ListThreadsSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  channel: z.string().describe("Channel name or ID"),
+  archived: z.boolean().default(false).describe("Include archived threads"),
+});
+
+const SendThreadMessageSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  thread: z.string().describe("Thread name or ID"),
+  message: z.string().describe("Message content"),
+});
+
+const ArchiveThreadSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  thread: z.string().describe("Thread name or ID"),
+  archived: z.boolean().default(true).describe("true to archive, false to unarchive"),
+});
+
+const DeleteThreadSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  thread: z.string().describe("Thread name or ID"),
+});
+
+const EditThreadSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  thread: z.string().describe("Thread name or ID"),
+  name: z.string().optional().describe("New thread name"),
+  autoArchiveDuration: z.enum(["60", "1440", "4320", "10080"]).optional().describe("Auto-archive in minutes"),
+  rateLimitPerUser: z.number().optional().describe("Slowmode in seconds (0-21600)"),
+  locked: z.boolean().optional().describe("Whether thread is locked"),
+});
+
+// Forum schemas
+const CreateForumPostSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  channel: z.string().describe("Forum channel name or ID"),
+  name: z.string().describe("Post title"),
+  content: z.string().describe("Post content"),
+  tags: z.array(z.string()).optional().describe("Tag names to apply"),
+});
+
+const ListForumTagsSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  channel: z.string().describe("Forum channel name or ID"),
+});
+
+const ManageForumTagsSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  channel: z.string().describe("Forum channel name or ID"),
+  action: z.enum(["create", "edit", "delete"]).describe("Action to perform"),
+  name: z.string().describe("Tag name (for create/edit: new name, for delete: existing name)"),
+  newName: z.string().optional().describe("New name when editing"),
+  emoji: z.string().optional().describe("Unicode emoji for the tag"),
+  moderated: z.boolean().optional().describe("Whether only mods can apply this tag"),
+});
+
+// Guild settings schemas
+const EditServerSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  name: z.string().optional().describe("New server name"),
+  description: z.string().optional().describe("Server description"),
+  icon: z.string().optional().describe("Icon URL or base64"),
+  systemChannel: z.string().optional().describe("System channel name or ID"),
+  afkChannel: z.string().optional().describe("AFK voice channel name or ID"),
+  afkTimeout: z.number().optional().describe("AFK timeout in seconds (60, 300, 900, 1800, 3600)"),
+  verificationLevel: z.enum(["none", "low", "medium", "high", "very_high"]).optional().describe("Verification level"),
+  defaultNotifications: z.enum(["all", "mentions"]).optional().describe("Default notification setting"),
+  explicitContentFilter: z.enum(["disabled", "members_without_roles", "all_members"]).optional().describe("Explicit content filter"),
+});
+
+const SetBotNicknameSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  nickname: z.string().optional().describe("New nickname (omit to clear)"),
+});
+
+const SetBotActivitySchema = z.object({
+  type: z.enum(["playing", "watching", "listening", "competing"]).describe("Activity type"),
+  name: z.string().describe("Activity text"),
+  status: z.enum(["online", "idle", "dnd", "invisible"]).default("online").describe("Bot status"),
+});
+
+// Emoji schemas
+const ListEmojisSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+});
+
+const CreateEmojiSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  name: z.string().describe("Emoji name"),
+  url: z.string().describe("Image URL for the emoji"),
+  roles: z.array(z.string()).optional().describe("Roles that can use this emoji"),
+});
+
+const DeleteEmojiSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  emoji: z.string().describe("Emoji name or ID"),
+});
+
+// Scheduled event schemas
+const CreateEventSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  name: z.string().describe("Event name"),
+  description: z.string().optional().describe("Event description"),
+  startTime: z.string().describe("Start time (ISO 8601)"),
+  endTime: z.string().optional().describe("End time (ISO 8601, required for external events)"),
+  channel: z.string().optional().describe("Voice/stage channel for the event"),
+  location: z.string().optional().describe("External location (if not in a channel)"),
+  image: z.string().optional().describe("Event cover image URL"),
+});
+
+const ListEventsSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+});
+
+const EditEventSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  event: z.string().describe("Event name or ID"),
+  name: z.string().optional().describe("New event name"),
+  description: z.string().optional().describe("New description"),
+  startTime: z.string().optional().describe("New start time (ISO 8601)"),
+  endTime: z.string().optional().describe("New end time (ISO 8601)"),
+  status: z.enum(["scheduled", "active", "completed", "canceled"]).optional().describe("Event status"),
+});
+
+const DeleteEventSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  event: z.string().describe("Event name or ID"),
+});
+
+// Audit log schema
+const GetAuditLogSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  limit: z.number().min(1).max(100).default(10).describe("Number of entries"),
+  type: z.string().optional().describe("Action type filter (e.g. ChannelCreate, MemberBanAdd)"),
+  user: z.string().optional().describe("Filter by user who performed action"),
+});
+
+// AutoMod schemas
+const ListAutoModRulesSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+});
+
+const CreateAutoModRuleSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  name: z.string().describe("Rule name"),
+  triggerType: z.enum(["keyword", "spam", "keyword_preset", "mention_spam"]).describe("Trigger type"),
+  keywords: z.array(z.string()).optional().describe("Keywords to filter (for keyword trigger)"),
+  regexPatterns: z.array(z.string()).optional().describe("Regex patterns (for keyword trigger)"),
+  presets: z.array(z.enum(["profanity", "sexual_content", "slurs"])).optional().describe("Preset word lists"),
+  mentionLimit: z.number().optional().describe("Max mentions per message (for mention_spam)"),
+  actions: z.array(z.object({
+    type: z.enum(["block", "alert", "timeout"]).describe("Action type"),
+    channel: z.string().optional().describe("Alert channel (for alert action)"),
+    duration: z.number().optional().describe("Timeout duration in seconds (for timeout action)"),
+  })).describe("Actions to take when rule triggers"),
+  enabled: z.boolean().default(true),
+});
+
+const EditAutoModRuleSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  rule: z.string().describe("Rule name or ID"),
+  name: z.string().optional().describe("New rule name"),
+  enabled: z.boolean().optional().describe("Enable/disable rule"),
+  keywords: z.array(z.string()).optional().describe("New keywords"),
+  regexPatterns: z.array(z.string()).optional().describe("New regex patterns"),
+  actions: z.array(z.object({
+    type: z.enum(["block", "alert", "timeout"]),
+    channel: z.string().optional(),
+    duration: z.number().optional(),
+  })).optional().describe("New actions"),
+});
+
+const DeleteAutoModRuleSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  rule: z.string().describe("Rule name or ID"),
+});
+
+// Nickname schema
+const SetNicknameSchema = z.object({
+  server: z.string().optional().describe("Server name or ID"),
+  member: z.string().describe("Member username, display name, or ID"),
+  nickname: z.string().optional().describe("New nickname (omit to clear)"),
+});
+
 // Permission name to flag mapping (supports SCREAMING_SNAKE_CASE input)
 const permissionMapping: Record<string, bigint> = {
   CREATE_INSTANT_INVITE: PermissionFlagsBits.CreateInstantInvite,
