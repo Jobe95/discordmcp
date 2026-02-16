@@ -1666,6 +1666,361 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["code"],
         },
       },
+      // Thread tools
+      {
+        name: "create-thread",
+        description: "Create a thread in a channel, optionally from a message",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID (optional if bot is only in one server)" },
+            channel: { type: "string", description: "Channel name or ID to create thread in" },
+            name: { type: "string", description: "Thread name" },
+            message: { type: "string", description: "Message ID to create thread from (optional)" },
+            autoArchiveDuration: { type: "string", enum: ["60", "1440", "4320", "10080"], description: "Auto-archive in minutes" },
+            type: { type: "string", enum: ["public", "private"], description: "Thread type", default: "public" },
+          },
+          required: ["channel", "name"],
+        },
+      },
+      {
+        name: "list-threads",
+        description: "List threads in a channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            channel: { type: "string", description: "Channel name or ID" },
+            archived: { type: "boolean", description: "Include archived threads", default: false },
+          },
+          required: ["channel"],
+        },
+      },
+      {
+        name: "send-thread-message",
+        description: "Send a message to a thread",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            thread: { type: "string", description: "Thread name or ID" },
+            message: { type: "string", description: "Message content" },
+          },
+          required: ["thread", "message"],
+        },
+      },
+      {
+        name: "archive-thread",
+        description: "Archive or unarchive a thread",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            thread: { type: "string", description: "Thread name or ID" },
+            archived: { type: "boolean", description: "true to archive, false to unarchive", default: true },
+          },
+          required: ["thread"],
+        },
+      },
+      {
+        name: "delete-thread",
+        description: "Delete a thread",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            thread: { type: "string", description: "Thread name or ID" },
+          },
+          required: ["thread"],
+        },
+      },
+      {
+        name: "edit-thread",
+        description: "Edit thread settings (name, archive duration, slowmode, locked)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            thread: { type: "string", description: "Thread name or ID" },
+            name: { type: "string", description: "New thread name" },
+            autoArchiveDuration: { type: "string", enum: ["60", "1440", "4320", "10080"], description: "Auto-archive in minutes" },
+            rateLimitPerUser: { type: "number", description: "Slowmode in seconds (0-21600)" },
+            locked: { type: "boolean", description: "Whether thread is locked" },
+          },
+          required: ["thread"],
+        },
+      },
+      // Forum tools
+      {
+        name: "create-forum-post",
+        description: "Create a post in a forum channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            channel: { type: "string", description: "Forum channel name or ID" },
+            name: { type: "string", description: "Post title" },
+            content: { type: "string", description: "Post content" },
+            tags: { type: "array", items: { type: "string" }, description: "Tag names to apply" },
+          },
+          required: ["channel", "name", "content"],
+        },
+      },
+      {
+        name: "list-forum-tags",
+        description: "List available tags on a forum channel",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            channel: { type: "string", description: "Forum channel name or ID" },
+          },
+          required: ["channel"],
+        },
+      },
+      {
+        name: "manage-forum-tags",
+        description: "Create, edit, or delete forum tags",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            channel: { type: "string", description: "Forum channel name or ID" },
+            action: { type: "string", enum: ["create", "edit", "delete"], description: "Action" },
+            name: { type: "string", description: "Tag name" },
+            newName: { type: "string", description: "New name when editing" },
+            emoji: { type: "string", description: "Unicode emoji" },
+            moderated: { type: "boolean", description: "Only mods can apply" },
+          },
+          required: ["channel", "action", "name"],
+        },
+      },
+      // Guild settings tools
+      {
+        name: "edit-server",
+        description: "Edit server settings (name, description, icon, verification, notifications, etc.)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            name: { type: "string", description: "New server name" },
+            description: { type: "string", description: "Server description" },
+            icon: { type: "string", description: "Icon URL" },
+            systemChannel: { type: "string", description: "System channel name or ID" },
+            afkChannel: { type: "string", description: "AFK voice channel name or ID" },
+            afkTimeout: { type: "number", description: "AFK timeout in seconds" },
+            verificationLevel: { type: "string", enum: ["none", "low", "medium", "high", "very_high"], description: "Verification level" },
+            defaultNotifications: { type: "string", enum: ["all", "mentions"], description: "Default notifications" },
+            explicitContentFilter: { type: "string", enum: ["disabled", "members_without_roles", "all_members"], description: "Content filter" },
+          },
+        },
+      },
+      {
+        name: "set-bot-nickname",
+        description: "Change the bot's nickname in a server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            nickname: { type: "string", description: "New nickname (omit to clear)" },
+          },
+        },
+      },
+      {
+        name: "set-bot-activity",
+        description: "Set the bot's activity/presence (playing, watching, listening, competing)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["playing", "watching", "listening", "competing"], description: "Activity type" },
+            name: { type: "string", description: "Activity text" },
+            status: { type: "string", enum: ["online", "idle", "dnd", "invisible"], description: "Bot status", default: "online" },
+          },
+          required: ["type", "name"],
+        },
+      },
+      // Emoji tools
+      {
+        name: "list-emojis",
+        description: "List all custom emojis in the server",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+          },
+        },
+      },
+      {
+        name: "create-emoji",
+        description: "Create a custom emoji from an image URL",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            name: { type: "string", description: "Emoji name" },
+            url: { type: "string", description: "Image URL" },
+            roles: { type: "array", items: { type: "string" }, description: "Roles that can use this emoji" },
+          },
+          required: ["name", "url"],
+        },
+      },
+      {
+        name: "delete-emoji",
+        description: "Delete a custom emoji",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            emoji: { type: "string", description: "Emoji name or ID" },
+          },
+          required: ["emoji"],
+        },
+      },
+      // Scheduled event tools
+      {
+        name: "create-event",
+        description: "Create a scheduled event (in voice/stage channel or external location)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            name: { type: "string", description: "Event name" },
+            description: { type: "string", description: "Event description" },
+            startTime: { type: "string", description: "Start time (ISO 8601)" },
+            endTime: { type: "string", description: "End time (ISO 8601, required for external)" },
+            channel: { type: "string", description: "Voice/stage channel (omit for external)" },
+            location: { type: "string", description: "External location" },
+            image: { type: "string", description: "Cover image URL" },
+          },
+          required: ["name", "startTime"],
+        },
+      },
+      {
+        name: "list-events",
+        description: "List scheduled events",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+          },
+        },
+      },
+      {
+        name: "edit-event",
+        description: "Edit a scheduled event",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            event: { type: "string", description: "Event name or ID" },
+            name: { type: "string", description: "New name" },
+            description: { type: "string", description: "New description" },
+            startTime: { type: "string", description: "New start time" },
+            endTime: { type: "string", description: "New end time" },
+            status: { type: "string", enum: ["scheduled", "active", "completed", "canceled"], description: "Event status" },
+          },
+          required: ["event"],
+        },
+      },
+      {
+        name: "delete-event",
+        description: "Delete a scheduled event",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            event: { type: "string", description: "Event name or ID" },
+          },
+          required: ["event"],
+        },
+      },
+      // Audit log tool
+      {
+        name: "get-audit-log",
+        description: "Fetch audit log entries with optional filters",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            limit: { type: "number", description: "Number of entries (max 100)", default: 10 },
+            type: { type: "string", description: "Action type (e.g. ChannelCreate, MemberBanAdd)" },
+            user: { type: "string", description: "Filter by user" },
+          },
+        },
+      },
+      // AutoMod tools
+      {
+        name: "list-automod-rules",
+        description: "List all auto-moderation rules",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+          },
+        },
+      },
+      {
+        name: "create-automod-rule",
+        description: "Create an auto-moderation rule (keyword filter, spam, mention spam)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            name: { type: "string", description: "Rule name" },
+            triggerType: { type: "string", enum: ["keyword", "spam", "keyword_preset", "mention_spam"], description: "Trigger type" },
+            keywords: { type: "array", items: { type: "string" }, description: "Keywords to filter" },
+            regexPatterns: { type: "array", items: { type: "string" }, description: "Regex patterns" },
+            presets: { type: "array", items: { type: "string", enum: ["profanity", "sexual_content", "slurs"] }, description: "Preset word lists" },
+            mentionLimit: { type: "number", description: "Max mentions per message" },
+            actions: { type: "array", items: { type: "object", properties: { type: { type: "string", enum: ["block", "alert", "timeout"] }, channel: { type: "string" }, duration: { type: "number" } }, required: ["type"] }, description: "Actions to take" },
+            enabled: { type: "boolean", description: "Enable rule", default: true },
+          },
+          required: ["name", "triggerType", "actions"],
+        },
+      },
+      {
+        name: "edit-automod-rule",
+        description: "Edit an auto-moderation rule",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            rule: { type: "string", description: "Rule name or ID" },
+            name: { type: "string", description: "New name" },
+            enabled: { type: "boolean", description: "Enable/disable" },
+            keywords: { type: "array", items: { type: "string" }, description: "New keywords" },
+            regexPatterns: { type: "array", items: { type: "string" }, description: "New regex" },
+            actions: { type: "array", items: { type: "object", properties: { type: { type: "string", enum: ["block", "alert", "timeout"] }, channel: { type: "string" }, duration: { type: "number" } }, required: ["type"] }, description: "New actions" },
+          },
+          required: ["rule"],
+        },
+      },
+      {
+        name: "delete-automod-rule",
+        description: "Delete an auto-moderation rule",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            rule: { type: "string", description: "Rule name or ID" },
+          },
+          required: ["rule"],
+        },
+      },
+      // Nickname tool
+      {
+        name: "set-nickname",
+        description: "Set or clear a member's nickname",
+        inputSchema: {
+          type: "object",
+          properties: {
+            server: { type: "string", description: "Server name or ID" },
+            member: { type: "string", description: "Member username, display name, or ID" },
+            nickname: { type: "string", description: "New nickname (omit to clear)" },
+          },
+          required: ["member"],
+        },
+      },
     ],
   };
 });
