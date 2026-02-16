@@ -2952,6 +2952,237 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      // Thread tools
+      case "create-thread": {
+        const {
+          server: serverIdentifier,
+          channel: channelIdentifier,
+          name,
+          message: messageId,
+          autoArchiveDuration,
+          type,
+        } = CreateThreadSchema.parse(args);
+        const channel = await findTextChannel(channelIdentifier, serverIdentifier);
+
+        const durationMap: Record<string, ThreadAutoArchiveDuration> = {
+          "60": ThreadAutoArchiveDuration.OneHour,
+          "1440": ThreadAutoArchiveDuration.OneDay,
+          "4320": ThreadAutoArchiveDuration.ThreeDays,
+          "10080": ThreadAutoArchiveDuration.OneWeek,
+        };
+
+        if (messageId) {
+          const msg = await channel.messages.fetch(messageId);
+          const thread = await msg.startThread({
+            name,
+            autoArchiveDuration: autoArchiveDuration ? durationMap[autoArchiveDuration] : undefined,
+          });
+          return {
+            content: [{ type: "text", text: `Thread "${thread.name}" created from message. ID: ${thread.id}` }],
+          };
+        }
+
+        const thread = await channel.threads.create({
+          name,
+          autoArchiveDuration: autoArchiveDuration ? durationMap[autoArchiveDuration] : undefined,
+          type: type === "private" ? ChannelType.PrivateThread : ChannelType.PublicThread,
+        });
+        return {
+          content: [{ type: "text", text: `Thread "${thread.name}" created. ID: ${thread.id}` }],
+        };
+      }
+
+      case "list-threads": {
+        const {
+          server: serverIdentifier,
+          channel: channelIdentifier,
+          archived,
+        } = ListThreadsSchema.parse(args);
+        const channel = await findTextChannel(channelIdentifier, serverIdentifier);
+
+        const active = await channel.threads.fetchActive();
+        let threads = Array.from(active.threads.values());
+
+        if (archived) {
+          const archivedThreads = await channel.threads.fetchArchived();
+          threads = [...threads, ...Array.from(archivedThreads.threads.values())];
+        }
+
+        const formatted = threads.map((t) => ({
+          id: t.id,
+          name: t.name,
+          archived: t.archived,
+          locked: t.locked,
+          messageCount: t.messageCount,
+          memberCount: t.memberCount,
+          createdAt: t.createdAt?.toISOString(),
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(formatted, null, 2) }],
+        };
+      }
+
+      case "send-thread-message": {
+        const {
+          server: serverIdentifier,
+          thread: threadIdentifier,
+          message,
+        } = SendThreadMessageSchema.parse(args);
+        const thread = await findThread(threadIdentifier, serverIdentifier);
+        const sent = await thread.send(message);
+        return {
+          content: [{ type: "text", text: `Message sent to thread "${thread.name}". Message ID: ${sent.id}` }],
+        };
+      }
+
+      case "archive-thread": {
+        const {
+          server: serverIdentifier,
+          thread: threadIdentifier,
+          archived,
+        } = ArchiveThreadSchema.parse(args);
+        const thread = await findThread(threadIdentifier, serverIdentifier);
+        await thread.setArchived(archived);
+        return {
+          content: [{ type: "text", text: `Thread "${thread.name}" ${archived ? "archived" : "unarchived"}` }],
+        };
+      }
+
+      case "delete-thread": {
+        const {
+          server: serverIdentifier,
+          thread: threadIdentifier,
+        } = DeleteThreadSchema.parse(args);
+        const thread = await findThread(threadIdentifier, serverIdentifier);
+        const threadName = thread.name;
+        await thread.delete();
+        return {
+          content: [{ type: "text", text: `Thread "${threadName}" deleted` }],
+        };
+      }
+
+      case "edit-thread": {
+        const {
+          server: serverIdentifier,
+          thread: threadIdentifier,
+          name,
+          autoArchiveDuration,
+          rateLimitPerUser,
+          locked,
+        } = EditThreadSchema.parse(args);
+        const thread = await findThread(threadIdentifier, serverIdentifier);
+
+        const durationMap: Record<string, ThreadAutoArchiveDuration> = {
+          "60": ThreadAutoArchiveDuration.OneHour,
+          "1440": ThreadAutoArchiveDuration.OneDay,
+          "4320": ThreadAutoArchiveDuration.ThreeDays,
+          "10080": ThreadAutoArchiveDuration.OneWeek,
+        };
+
+        const options: Record<string, unknown> = {};
+        if (name) options.name = name;
+        if (autoArchiveDuration) options.autoArchiveDuration = durationMap[autoArchiveDuration];
+        if (rateLimitPerUser !== undefined) options.rateLimitPerUser = rateLimitPerUser;
+        if (locked !== undefined) options.locked = locked;
+
+        await thread.edit(options);
+        return {
+          content: [{ type: "text", text: `Thread "${thread.name}" updated` }],
+        };
+      }
+
+      // Forum tools
+      case "create-forum-post": {
+        const {
+          server: serverIdentifier,
+          channel: channelIdentifier,
+          name,
+          content,
+          tags,
+        } = CreateForumPostSchema.parse(args);
+        const forum = await findForumChannel(channelIdentifier, serverIdentifier);
+
+        const appliedTags = tags
+          ? forum.availableTags
+              .filter((t) => tags.some((tag) => tag.toLowerCase() === t.name.toLowerCase()))
+              .map((t) => t.id)
+          : [];
+
+        const post = await forum.threads.create({
+          name,
+          message: { content },
+          appliedTags,
+        });
+        return {
+          content: [{ type: "text", text: `Forum post "${post.name}" created. ID: ${post.id}` }],
+        };
+      }
+
+      case "list-forum-tags": {
+        const {
+          server: serverIdentifier,
+          channel: channelIdentifier,
+        } = ListForumTagsSchema.parse(args);
+        const forum = await findForumChannel(channelIdentifier, serverIdentifier);
+
+        const tags = forum.availableTags.map((t) => ({
+          id: t.id,
+          name: t.name,
+          emoji: t.emoji,
+          moderated: t.moderated,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(tags, null, 2) }],
+        };
+      }
+
+      case "manage-forum-tags": {
+        const {
+          server: serverIdentifier,
+          channel: channelIdentifier,
+          action,
+          name,
+          newName,
+          emoji,
+          moderated,
+        } = ManageForumTagsSchema.parse(args);
+        const forum = await findForumChannel(channelIdentifier, serverIdentifier);
+
+        let tags = [...forum.availableTags];
+
+        if (action === "create") {
+          tags.push({
+            name,
+            emoji: emoji ? { id: null, name: emoji } : null,
+            moderated: moderated ?? false,
+            id: undefined as unknown as string,
+          });
+          await forum.setAvailableTags(tags);
+          return {
+            content: [{ type: "text", text: `Tag "${name}" created on forum "${forum.name}"` }],
+          };
+        }
+
+        if (action === "edit") {
+          const idx = tags.findIndex((t) => t.name.toLowerCase() === name.toLowerCase());
+          if (idx === -1) throw new Error(`Tag "${name}" not found`);
+          if (newName) tags[idx] = { ...tags[idx], name: newName };
+          if (emoji) tags[idx] = { ...tags[idx], emoji: { id: null, name: emoji } };
+          if (moderated !== undefined) tags[idx] = { ...tags[idx], moderated };
+          await forum.setAvailableTags(tags);
+          return {
+            content: [{ type: "text", text: `Tag "${name}" updated` }],
+          };
+        }
+
+        // delete
+        tags = tags.filter((t) => t.name.toLowerCase() !== name.toLowerCase());
+        await forum.setAvailableTags(tags);
+        return {
+          content: [{ type: "text", text: `Tag "${name}" deleted from forum "${forum.name}"` }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
